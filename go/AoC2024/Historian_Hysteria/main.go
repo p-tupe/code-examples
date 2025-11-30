@@ -2,16 +2,16 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"slices"
 	"strconv"
 	"strings"
 )
 
+const inputFile = "./input.txt"
+
 func main() {
-	first, second, err := parseIP(ip)
-	if err != nil {
-		panic(err)
-	}
+	first, second := parseIP()
 
 	distance := calcDist(first, second)
 	fmt.Println("Distance:", distance)
@@ -20,31 +20,38 @@ func main() {
 	fmt.Println("Similarity:", similarity)
 }
 
-// parseIP takes in the raw string input and
+// parseIP reads the raw string from inputFile and
 // returns the 2 slices of location ids.
-// It returns an error if a number cannot be parsed,
-// or it the arrays aren't of same length
-func parseIP(str string) ([]int, []int, error) {
+func parseIP() ([]int, []int) {
+	rawIp, err := os.ReadFile(inputFile)
+	if err != nil {
+		panic(err)
+	}
+
+	str := string(rawIp)
 	first := make([]int, 0, len(str)/2)
 	second := make([]int, 0, len(str)/2)
 
 	for row := range strings.SplitSeq(str, "\n") {
 		nums := strings.Fields(row)
+		if len(nums) != 2 {
+			break
+		}
 
 		num1, err := strconv.Atoi(nums[0])
 		if err != nil {
-			return nil, nil, err
+			panic(err)
 		}
 		first = append(first, num1)
 
 		num2, err := strconv.Atoi(nums[1])
 		if err != nil {
-			return nil, nil, err
+			panic(err)
 		}
 		second = append(second, num2)
 	}
 
-	return first, second, nil
+	return first, second
 }
 
 // calcDist takes in 2 slices of ints, sorts them
