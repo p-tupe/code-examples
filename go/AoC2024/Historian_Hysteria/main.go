@@ -2,16 +2,13 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"slices"
 	"strconv"
 	"strings"
 )
 
-const inputFile = "./input.txt"
-
 func main() {
-	first, second := parseIP()
+	first, second := parseIP(ip)
 
 	distance := calcDist(first, second)
 	fmt.Println("Distance:", distance)
@@ -22,13 +19,7 @@ func main() {
 
 // parseIP reads the raw string from inputFile and
 // returns the 2 slices of location ids.
-func parseIP() ([]int, []int) {
-	rawIp, err := os.ReadFile(inputFile)
-	if err != nil {
-		panic(err)
-	}
-
-	str := string(rawIp)
+func parseIP(str string) ([]int, []int) {
 	first := make([]int, 0, len(str)/2)
 	second := make([]int, 0, len(str)/2)
 
