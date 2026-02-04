@@ -1,4 +1,4 @@
-module snazzy-maps-scraper
+module github.com/p-tupe/code-examples/go/snazzy-maps-scraper
 
 go 1.25.1
 

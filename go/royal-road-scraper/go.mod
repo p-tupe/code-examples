@@ -1,4 +1,4 @@
-module github.com/p-tupe/dev-log/examples/go/royal-road-scraper
+module github.com/p-tupe/code-examples/go/royal-road-scraper
 
 go 1.25.5
 
