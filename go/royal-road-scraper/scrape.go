@@ -1,13 +1,11 @@
-// RoyalRoadScrapper is a cli utility to download full stories
-// from royalroad.com.
+// RoyalRoadScrapper is a cli utility to download stories from royalroad.com.
 //
 // USAGE:
 //
-//	go run scrape.go royalroad.com/fiction/x/y/chapter/x/y
+//	go run scrape.go royalroad.com/fiction/x/y/chapter/x/y > story.txt
 package main
 
 import (
-	"fmt"
 	"net/http"
 	"os"
 	"strings"
@@ -21,14 +19,7 @@ func main() {
 	}
 	url := os.Args[1]
 
-	outFile, err := os.Create("./story.txt")
-	if err != nil {
-		panic(err)
-	}
-	defer outFile.Close()
-
 	for {
-		fmt.Println("Fetching: ", url)
 		res, err := http.Get(url)
 		if err != nil {
 			panic(err)
@@ -42,7 +33,9 @@ func main() {
 		doc, err := goquery.NewDocumentFromReader(res.Body)
 		title := doc.Find("div.row.fic-header > h1").Text()
 		content := doc.Find("div.chapter-content").Text()
-		outFile.Write([]byte("\n" + title + "\n\n" + content + "\n"))
+		content = strings.ReplaceAll(content, "\n", "\n\n")
+		content = strings.Trim(content, "\n ")
+		os.Stdout.Write([]byte("\n" + title + "\n\n" + content + "\n"))
 
 		for _, s := range doc.Find("a.btn-primary").EachIter() {
 			content := s.Text()
@@ -58,7 +51,6 @@ func main() {
 		}
 
 		if url == "" {
-			fmt.Println("Done!")
 			break
 		}
 	}

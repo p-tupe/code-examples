@@ -1,10 +1,10 @@
 module github.com/p-tupe/dev-log/examples/go/royal-road-scraper
 
-go 1.24.2
+go 1.25.5
 
-require github.com/PuerkitoBio/goquery v1.10.3
+require github.com/PuerkitoBio/goquery v1.11.0
 
 require (
 	github.com/andybalholm/cascadia v1.3.3 // indirect
-	golang.org/x/net v0.39.0 // indirect
+	golang.org/x/net v0.48.0 // indirect
 )

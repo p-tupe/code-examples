@@ -12,10 +12,12 @@ package main
 import (
 	u "packages/utils"
 	n "packages/utils/nested"
+	"packages/utils/typical"
 )
 
 func main() {
 	// This code is implemented in other package
+	typical.XYZ()
 	println(u.MagicNumber())
 	println(n.MagicString())
 }
