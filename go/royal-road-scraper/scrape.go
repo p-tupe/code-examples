@@ -6,6 +6,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"os"
 	"strings"
@@ -15,17 +16,20 @@ import (
 
 func main() {
 	if len(os.Args) < 2 {
-		panic("Error parsing URL!\n\rUSAGE: go run scrape.go <URL>")
+		fmt.Println("Error while parsing URL!\n\rUSAGE: go run scrape.go <URL>")
+		return
 	}
 	url := os.Args[1]
 
 	for {
 		res, err := http.Get(url)
 		if err != nil {
-			panic(err)
+			fmt.Println("Error while fetching url: ", err)
+			return
 		}
 		if res.StatusCode != 200 {
-			panic("Bad response")
+			fmt.Println("Error while parsing response:", res.Status)
+			return
 		}
 		defer res.Body.Close()
 		url = ""

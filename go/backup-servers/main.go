@@ -1,5 +1,3 @@
-//usr/bin/env go run "$0" "$@"; exit "$?"
-
 // Package backup-servers is a script that pulls all non-hidden data from
 // given server SSH URLs and into a backup directory
 //

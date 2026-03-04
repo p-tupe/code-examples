@@ -1,5 +1,7 @@
 // package check-sites is a health monitoring tool
 // that pings a list of sites (urls) and ensures they're up.
+//
+// Ideally, this should be run using a service daemon.
 package main
 
 import (

@@ -1,6 +1,6 @@
 # Mail Server Setup
 
-After updating the credentials in `main.go:15`, follow the script:
+After updating the credentials in `.env`, follow the script:
 
 ```sh
 # Build the app
@@ -17,8 +17,16 @@ sudo systemctl enable --now go-mail-server
 sudo journalctl -u go-mail-server
 ```
 
-To send an email:
+---
+
+To send a simple email:
 
 ```sh
-curl -H "Authorization: some-random-string" -d "email body" localhost:8080
+curl -H "Authorization: some-auth-string" -d "email body" localhost:8080
+```
+
+To send a custom email:
+
+```sh
+curl -H "Authorization: some-auth-string" --json '{"to":["x@mail.com"],"subject":"Hello","message":"Hello again!"}' localhost:8080/custom
 ```
