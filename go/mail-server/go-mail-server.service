@@ -2,7 +2,8 @@
 Description=a simple mail server in go
 
 [Service]
-ExecStart=/home/ubuntu/go-mail-server/app
+ExecStart=/home/ubuntu/go/mail-server
+EnvironmentFile=/home/ubuntu/.env
 Restart=on-failure
 
 [Install]

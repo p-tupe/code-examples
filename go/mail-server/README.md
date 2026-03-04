@@ -1,12 +1,25 @@
-# Mail Server Setup
-
-After updating the credentials in `.env`, follow the script:
+# Mail Server Setup (Systemd)
 
 ```sh
-# Build the app
-GOOS=linux go build -o app .
+# Install the app
+go install github.com/p-tupe/code-examples/go/mail-server
 
-# Modify the exec path of app as necessary in .service file
+# Pull .env.sample
+curl -fsSL -o .env \
+    https://raw.githubusercontent.com/p-tupe/code-examples/refs/heads/main/go/mail-server/.env.sample
+
+# Modify the variables
+$EDITOR .env
+
+# Pull the service file
+curl -fsSL -o go-mail-server.service \
+    https://raw.githubusercontent.com/p-tupe/code-examples/refs/heads/main/go/mail-server/go-mail-server.service
+
+
+# Modify the exec path and environ file var
+$EDITOR go-mail-server.service
+
+# Copy service file to systemd dir
 sudo cp mail-server.service /etc/systemd/system/
 
 # Enable on login and start immediately

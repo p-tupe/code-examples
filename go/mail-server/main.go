@@ -30,13 +30,13 @@ var (
 )
 
 func middleware(w http.ResponseWriter, r *http.Request) int {
-	slog.Info("Request: ", "method", r.Method, "host", r.Host, "path", r.URL.Path)
+	slog.Info("Request:", "method", r.Method, "host", r.Host, "path", r.URL.Path)
 
 	key := r.Header.Get("Authorization")
 
 	if r.Method != http.MethodGet && key != AuthKey {
 		slog.Error("Invalid Authorization key: " + key)
-		slog.Info("Response: ", "method", r.Method, "host", r.Host, "path", r.URL.Path, "status", "unauthorized")
+		slog.Info("Response:", "method", r.Method, "host", r.Host, "path", r.URL.Path, "status", "unauthorized")
 		return http.StatusUnauthorized
 	}
 
@@ -64,7 +64,7 @@ func simpleMail(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		slog.Error("Unable to read request body: " + err.Error())
-		slog.Info("Response: ", "method", r.Method, "host", r.Host, "path", r.URL.Path, "status", "bad request")
+		slog.Info("Response:", "method", r.Method, "host", r.Host, "path", r.URL.Path, "status", "bad request")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -72,7 +72,7 @@ func simpleMail(w http.ResponseWriter, r *http.Request) {
 
 	if len(body) == 0 {
 		slog.Error("Empty request body encountered!")
-		slog.Info("Response: ", "method", r.Method, "host", r.Host, "path", r.URL.Path, "status", "bad request")
+		slog.Info("Response:", "method", r.Method, "host", r.Host, "path", r.URL.Path, "status", "bad request")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -83,12 +83,12 @@ func simpleMail(w http.ResponseWriter, r *http.Request) {
 	err = smtp.SendMail(Host+":"+Port, auth, From, strings.Split(To, ","), msg)
 	if err != nil {
 		slog.Error("Unable to send email: " + err.Error())
-		slog.Info("Response: ", "method", r.Method, "host", r.Host, "path", r.URL.Path, "status", "server down")
+		slog.Info("Response:", "method", r.Method, "host", r.Host, "path", r.URL.Path, "status", "server down")
 		w.WriteHeader(http.StatusServiceUnavailable)
 		return
 	}
 
-	slog.Info("Response: ", "method", r.Method, "host", r.Host, "path", r.URL.Path, "status", "ok")
+	slog.Info("Response:", "method", r.Method, "host", r.Host, "path", r.URL.Path, "status", "ok")
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -107,7 +107,7 @@ func customMail(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&body)
 	if err != nil {
 		slog.Error("Unable to parse request body: " + err.Error())
-		slog.Info("Response: ", "method", r.Method, "host", r.Host, "path", r.URL.Path, "status", "bad request")
+		slog.Info("Response:", "method", r.Method, "host", r.Host, "path", r.URL.Path, "status", "bad request")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -115,7 +115,7 @@ func customMail(w http.ResponseWriter, r *http.Request) {
 
 	if body.Subject == "" || body.Message == "" || len(body.To) == 0 {
 		slog.Error("Unable to find required data: " + err.Error())
-		slog.Info("Response: ", "method", r.Method, "host", r.Host, "path", r.URL.Path, "status", "bad request")
+		slog.Info("Response:", "method", r.Method, "host", r.Host, "path", r.URL.Path, "status", "bad request")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -126,12 +126,12 @@ func customMail(w http.ResponseWriter, r *http.Request) {
 	err = smtp.SendMail(Host+":"+Port, auth, From, body.To, msg)
 	if err != nil {
 		slog.Error("Unable to send email: " + err.Error())
-		slog.Info("Response: ", "method", r.Method, "host", r.Host, "path", r.URL.Path, "status", "server down")
+		slog.Info("Response:", "method", r.Method, "host", r.Host, "path", r.URL.Path, "status", "server down")
 		w.WriteHeader(http.StatusServiceUnavailable)
 		return
 	}
 
-	slog.Info("Response: ", "method", r.Method, "host", r.Host, "path", r.URL.Path, "status", "server down")
+	slog.Info("Response:", "method", r.Method, "host", r.Host, "path", r.URL.Path, "status", "server down")
 	w.WriteHeader(http.StatusOK)
 }
 
