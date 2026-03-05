@@ -34,7 +34,7 @@ func middleware(w http.ResponseWriter, r *http.Request) int {
 
 	key := r.Header.Get("Authorization")
 
-	if r.Method != http.MethodGet && key != AuthKey {
+	if r.Method == http.MethodPost && key != AuthKey {
 		slog.Error("Invalid Authorization key: " + key)
 		slog.Info("Response:", "method", r.Method, "host", r.Host, "path", r.URL.Path, "status", "unauthorized")
 		return http.StatusUnauthorized
