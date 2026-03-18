@@ -1,10 +1,11 @@
 // This is a simple mail server implementation that accepts an email body content on POST /
-// or a custom (To,Subject,Message) on POST /custom route
+// in form of a custom (To,Subject,Message) json body or simple plain text,
 // and sends it over via SMTP using go's builtin [net/smtp](https://pkg.go.dev/net/smtp) package.
 package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -13,30 +14,31 @@ import (
 	"os"
 	"strings"
 
-	_ "github.com/joho/godotenv/autoload"
+	"github.com/joho/godotenv"
 )
 
-// From .env file
 var (
-	Username = os.Getenv("Username")
-	Password = os.Getenv("Password")
-	Host     = os.Getenv("Host")
-	Port     = os.Getenv("Port")
-	From     = os.Getenv("From")
-	To       = os.Getenv("To")
-	AuthKey  = os.Getenv("AuthKey")
+	username string
+	password string
+	host     string
+	port     string
+	from     string
+	to       string // optional if using json body
+	authKey  string
 
 	auth smtp.Auth
 )
 
+type emailBody struct {
+	To      []string `json:"to"`
+	Subject string   `json:"subject"`
+	Message string   `json:"message"`
+}
+
 func middleware(w http.ResponseWriter, r *http.Request) int {
-	slog.Info("Request:", "method", r.Method, "host", r.Host, "path", r.URL.Path)
+	logR(r, "pending")
 
-	key := r.Header.Get("Authorization")
-
-	if r.Method == http.MethodPost && key != AuthKey {
-		slog.Error("Invalid Authorization key: " + key)
-		slog.Info("Response:", "method", r.Method, "host", r.Host, "path", r.URL.Path, "status", "unauthorized")
+	if r.Method == http.MethodPost && r.Header.Get("Authorization") != authKey {
 		return http.StatusUnauthorized
 	}
 
@@ -49,105 +51,108 @@ func middleware(w http.ResponseWriter, r *http.Request) int {
 
 func allOtherRoutes(w http.ResponseWriter, r *http.Request) {
 	if ok := middleware(w, r); ok != 0 {
+		logR(r, "unauthorized")
 		w.WriteHeader(ok)
 		return
 	}
+	logR(r, "ok")
 	w.WriteHeader(http.StatusOK)
 }
 
-func simpleMail(w http.ResponseWriter, r *http.Request) {
+// sendMail is a Post request handler on / that
+// accepts either a plain text body or a json of form [emailBody]
+// and sends the parse body as email.
+func sendMail(w http.ResponseWriter, r *http.Request) {
 	if ok := middleware(w, r); ok != 0 {
+		logR(r, "unauthorized")
 		w.WriteHeader(ok)
 		return
 	}
 
-	body, err := io.ReadAll(r.Body)
+	data, err := io.ReadAll(r.Body)
 	if err != nil {
-		slog.Error("Unable to read request body: " + err.Error())
-		slog.Info("Response:", "method", r.Method, "host", r.Host, "path", r.URL.Path, "status", "bad request")
+		logR(r, "cannot read body")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 	defer r.Body.Close()
 
-	if len(body) == 0 {
-		slog.Error("Empty request body encountered!")
-		slog.Info("Response:", "method", r.Method, "host", r.Host, "path", r.URL.Path, "status", "bad request")
+	if len(data) == 0 {
+		logR(r, "empty body")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	msg := fmt.Appendf([]byte{}, "From: %s\r\nTo: %s\r\nSubject: Automated Email\r\n\r\n%s\r\n",
-		From, To, string(body))
+	isJson := true
 
-	err = smtp.SendMail(Host+":"+Port, auth, From, strings.Split(To, ","), msg)
+	var body emailBody
+	err = json.Unmarshal(data, &body)
 	if err != nil {
-		slog.Error("Unable to send email: " + err.Error())
-		slog.Info("Response:", "method", r.Method, "host", r.Host, "path", r.URL.Path, "status", "server down")
+		// If body isn't json, but plain text
+		if _, ok := errors.AsType[*json.SyntaxError](err); ok {
+			isJson = false
+		} else {
+			logR(r, err.Error())
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+	}
+
+	var msg []byte
+
+	if isJson {
+		if body.Subject == "" || body.Message == "" || len(body.To) == 0 {
+			logR(r, "invalid json keys")
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		msg = fmt.Appendf([]byte{}, "From: %s\r\nTo: %s\r\nSubject: %s\r\n\r\n%s\r\n",
+			from, strings.Join(body.To, ","), body.Subject, body.Message)
+
+		err = smtp.SendMail(host+":"+port, auth, from, body.To, msg)
+	} else {
+		msg = fmt.Appendf([]byte{}, "From: %s\r\nTo: %s\r\nSubject: Automated Email\r\n\r\n%s\r\n",
+			from, to, string(data))
+
+		err = smtp.SendMail(host+":"+port, auth, from, strings.Split(to, ","), msg)
+	}
+
+	if err != nil {
+		logR(r, err.Error())
 		w.WriteHeader(http.StatusServiceUnavailable)
 		return
 	}
 
-	slog.Info("Response:", "method", r.Method, "host", r.Host, "path", r.URL.Path, "status", "ok")
-	w.WriteHeader(http.StatusOK)
-}
-
-func customMail(w http.ResponseWriter, r *http.Request) {
-	if ok := middleware(w, r); ok != 0 {
-		w.WriteHeader(ok)
-		return
-	}
-
-	var body struct {
-		To      []string `json:"to"`
-		Subject string   `json:"subject"`
-		Message string   `json:"message"`
-	}
-
-	err := json.NewDecoder(r.Body).Decode(&body)
-	if err != nil {
-		slog.Error("Unable to parse request body: " + err.Error())
-		slog.Info("Response:", "method", r.Method, "host", r.Host, "path", r.URL.Path, "status", "bad request")
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-	defer r.Body.Close()
-
-	if body.Subject == "" || body.Message == "" || len(body.To) == 0 {
-		slog.Error("Unable to find required data: " + err.Error())
-		slog.Info("Response:", "method", r.Method, "host", r.Host, "path", r.URL.Path, "status", "bad request")
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	msg := fmt.Appendf([]byte{}, "From: %s\r\nTo: %s\r\nSubject: %s\r\n\r\n%s\r\n",
-		From, strings.Join(body.To, ","), body.Subject, body.Message)
-
-	err = smtp.SendMail(Host+":"+Port, auth, From, body.To, msg)
-	if err != nil {
-		slog.Error("Unable to send email: " + err.Error())
-		slog.Info("Response:", "method", r.Method, "host", r.Host, "path", r.URL.Path, "status", "server down")
-		w.WriteHeader(http.StatusServiceUnavailable)
-		return
-	}
-
-	slog.Info("Response:", "method", r.Method, "host", r.Host, "path", r.URL.Path, "status", "server down")
+	logR(r, "ok")
 	w.WriteHeader(http.StatusOK)
 }
 
 func main() {
-	if Username == "" || Password == "" || Host == "" || Port == "" || From == "" || To == "" {
-		slog.Error("Required variables not found!")
+	if err := godotenv.Load(); err != nil {
+		fmt.Println("Unable to load .env:", err)
+		return
+	}
+
+	username = os.Getenv("Username")
+	password = os.Getenv("Password")
+	host = os.Getenv("Host")
+	port = os.Getenv("Port")
+	from = os.Getenv("From")
+	to = os.Getenv("To")
+	authKey = os.Getenv("AuthKey")
+
+	if username == "" || password == "" || host == "" || port == "" || from == "" || authKey == "" {
+		slog.Error("Required variables not found, please update .env file.")
 		os.Exit(1)
 	}
 
-	auth = smtp.PlainAuth("", Username, Password, Host)
+	auth = smtp.PlainAuth("", username, password, host)
 
 	http.HandleFunc("/", allOtherRoutes)
-	http.HandleFunc("POST /", simpleMail)
-	http.HandleFunc("POST /custom", customMail)
+	http.HandleFunc("POST /", sendMail)
 
-	port := os.Getenv("PORT")
+	port := os.Getenv("ServerPort")
 	if port == "" {
 		port = "8080"
 	}
@@ -156,4 +161,8 @@ func main() {
 	if err := http.ListenAndServe(":"+port, nil); err != nil {
 		slog.Error(err.Error())
 	}
+}
+
+func logR(r *http.Request, msg string) {
+	slog.Info("Request:", "method", r.Method, "host", r.Host, "path", r.URL.Path, "resp", msg)
 }

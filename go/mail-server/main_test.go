@@ -72,10 +72,10 @@ func TestMain(t *testing.T) {
 		}
 	})
 
-	t.Run("POST / OK", func(t *testing.T) {
+	t.Run("POST text / OK", func(t *testing.T) {
 		t.Parallel()
 
-		req, err := http.NewRequest(http.MethodPost, URL, strings.NewReader("go-mail test run for POST /"))
+		req, err := http.NewRequest(http.MethodPost, URL, strings.NewReader("go-mail test run for POST text /"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -92,12 +92,12 @@ func TestMain(t *testing.T) {
 		}
 	})
 
-	t.Run("POST /custom OK", func(t *testing.T) {
+	t.Run("POST json / OK", func(t *testing.T) {
 		t.Parallel()
 
-		body := `{"to":["mail@priteshtupe.com"],"subject":"Hello","message":"go-mail test run for POST /custom"}`
+		body := `{"to":["mail@priteshtupe.com"],"subject":"Hello","message":"go-mail test run for POST json /"}`
 
-		req, err := http.NewRequest(http.MethodPost, URL+"/custom", strings.NewReader(body))
+		req, err := http.NewRequest(http.MethodPost, URL, strings.NewReader(body))
 		if err != nil {
 			t.Fatal(err)
 		}
