@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"mime"
 	"net/http"
 	"os"
 	"strings"
@@ -102,6 +103,7 @@ func TestMain(t *testing.T) {
 			t.Fatal(err)
 		}
 		req.Header.Add("Authorization", AUTH_KEY)
+		req.Header.Add("Content-Type", mime.TypeByExtension(".json"))
 
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {

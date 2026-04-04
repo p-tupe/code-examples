@@ -5,10 +5,10 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
+	"mime"
 	"net/http"
 	"net/smtp"
 	"os"
@@ -71,7 +71,7 @@ func sendMail(w http.ResponseWriter, r *http.Request) {
 
 	data, err := io.ReadAll(r.Body)
 	if err != nil {
-		logR(r, "cannot read body")
+		logR(r, err.Error())
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -83,24 +83,17 @@ func sendMail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	isJson := true
+	var msg []byte
 
-	var body emailBody
-	err = json.Unmarshal(data, &body)
-	if err != nil {
-		// If body isn't json, but plain text
-		if _, ok := errors.AsType[*json.SyntaxError](err); ok {
-			isJson = false
-		} else {
+	if r.Header.Get("Content-Type") == mime.TypeByExtension(".json") {
+		var body emailBody
+		err = json.Unmarshal(data, &body)
+		if err != nil {
 			logR(r, err.Error())
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-	}
 
-	var msg []byte
-
-	if isJson {
 		if body.Subject == "" || body.Message == "" || len(body.To) == 0 {
 			logR(r, "invalid json keys")
 			w.WriteHeader(http.StatusBadRequest)

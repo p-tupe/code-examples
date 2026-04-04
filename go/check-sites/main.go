@@ -1,39 +1,69 @@
 // package check-sites is a health monitoring tool
-// that pings a list of sites (urls) and ensures they're up.
+// that pings a list of sites (urls) from config.json
+// and ensures they're up.
 //
-// Ideally, this should be run using a service daemon.
+// USAGE: check-sites <config>.json
 package main
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 )
 
-var sites = [...]string{
-	"https://priteshtupe.com",
-	"https://vpn.priteshtupe.com",
-	"https://nextcloud.priteshtupe.com",
-	"https://vaultwarden.priteshtupe.com",
-	"https://cloud.priteshtupe.com",
-	"https://excalidraw.priteshtupe.com",
-	"https://umami.priteshtupe.com",
-	// "https://codapi.priteshtupe.com", => ???
-	"https://app.priteshtupe.com/gtask/health",
+type Config struct {
+	Interval time.Duration `json:"interval"`
+	Sites    []string      `json:"sites"`
 }
 
 func main() {
 	log.Println("Pingmon started...")
-	tick := time.Tick(30 * time.Minute)
+	cfg, err := readConfig(os.Args[1])
+	if err != nil {
+		log.Println("Error while reading config: ", err)
+		return
+	}
 
+	log.Println("Added sites:", cfg.Sites)
+	log.Println("For interval: ", cfg.Interval*time.Minute)
+
+	tick := time.Tick(cfg.Interval * time.Minute)
 	for {
 		<-tick
-		for _, site := range sites {
+		for _, site := range cfg.Sites {
 			go check(site)
 		}
 	}
+}
+
+func readConfig(path string) (Config, error) {
+	var cfg Config
+
+	f, err := os.Open(path)
+	if err != nil {
+		return cfg, err
+	}
+	defer f.Close()
+
+	err = json.NewDecoder(f).Decode(&cfg)
+	if err != nil {
+		return cfg, err
+	}
+
+	if len(cfg.Sites) == 0 {
+		return cfg, errors.New("Error config.sites invalid!")
+	}
+
+	if cfg.Interval == 0 {
+		return cfg, errors.New("Error config.interval invalid!")
+	}
+
+	return cfg, nil
 }
 
 // check starts a ticker that checks for a
@@ -47,14 +77,7 @@ func check(site string) {
 		return
 	}
 
-	if site == "https://vpn.priteshtupe.com" {
-		if resp.StatusCode != http.StatusUnauthorized {
-			msg := fmt.Sprintf("Error while checking site %s: %v\n", site, resp.Status)
-			log.Println(msg)
-			alert(msg)
-			return
-		}
-	} else if resp.StatusCode > http.StatusMultipleChoices {
+	if resp.StatusCode > http.StatusMultipleChoices {
 		msg := fmt.Sprintf("Error while checking site %s: %v\n", site, resp.Status)
 		log.Println(msg)
 		alert(msg)
@@ -81,7 +104,7 @@ func alert(msg string) {
 		return
 	}
 
-	if resp.StatusCode != http.StatusAccepted {
+	if resp.StatusCode != http.StatusOK {
 		log.Println("Error while sending alert:", resp.Status)
 		return
 	}
