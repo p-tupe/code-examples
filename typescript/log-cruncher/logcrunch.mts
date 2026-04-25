@@ -1,17 +1,8 @@
 import { createReadStream, writeFileSync } from "node:fs";
 import { createInterface } from "node:readline/promises";
-import { Log } from "./log.mts";
 import { argv, exit } from "node:process";
 
-if (!argv[2]) {
-  console.error("Usage: logcrunch.mts test.log");
-  exit();
-}
-
-const rl = createInterface({ input: createReadStream(argv[2]) });
-
-rl.on("line", parseLine);
-rl.on("error", (err) => console.error(err));
+import { Log } from "./log.mts";
 
 const statsByPath: Record<
   string,
@@ -21,11 +12,23 @@ const statsByPath: Record<
     p95: number;
   }
 > = {};
-
 const statsByIP: Record<string, number> = {};
-
 let total_requests = 0;
 let skipped_lines = 0;
+let rl;
+
+async function main() {
+  if (!argv[2]) {
+    console.error("Usage: logcrunch.mts test.log");
+    exit(1);
+  }
+
+  rl = createInterface({ input: createReadStream(argv[2]) });
+  rl.on("line", parseLine);
+  rl.on("error", console.error);
+  rl.on("close", parseResults);
+}
+
 function parseLine(line: string) {
   total_requests++;
   try {
@@ -63,8 +66,8 @@ function parseResults() {
     const pIdx = Math.floor(0.95 * durations.length);
     statsByPath[path]!.p95 = durations[pIdx]!;
     console.log("Stats for path: ", path);
-    console.log("Errors: ", errors);
-    console.log("P95: ", durations[pIdx] + "ms");
+    console.log("  Errors: ", errors);
+    console.log("  P95: ", durations[pIdx] + "ms");
   }
 
   const sortedIPs = Object.keys(statsByIP).sort(
@@ -92,4 +95,4 @@ function parseResults() {
   );
 }
 
-rl.on("close", parseResults);
+await main().catch(console.error);

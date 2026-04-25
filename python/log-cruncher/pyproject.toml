@@ -1,0 +1,11 @@
+[project]
+name = "log-cruncher"
+version = "0.1.0"
+description = "logcruncher pulls in a log files and crunches it!"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = ["pydantic>=2.13.3"]
+
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
