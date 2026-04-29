@@ -15,7 +15,6 @@ const statsByPath: Record<
 const statsByIP: Record<string, number> = {};
 let total_requests = 0;
 let skipped_lines = 0;
-let rl;
 
 async function main() {
   if (!argv[2]) {
@@ -23,7 +22,7 @@ async function main() {
     exit(1);
   }
 
-  rl = createInterface({ input: createReadStream(argv[2]) });
+  const rl = createInterface({ input: createReadStream(argv[2]) });
   rl.on("line", parseLine);
   rl.on("error", console.error);
   rl.on("close", parseResults);
