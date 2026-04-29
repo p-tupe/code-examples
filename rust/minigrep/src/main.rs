@@ -3,8 +3,7 @@ use std::{env, error::Error, fs, process};
 use minigrep::search;
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let args = env::args().collect::<Vec<_>>();
-    let config = Config::build(&args).unwrap_or_else(|err| {
+    let config = Config::build(env::args()).unwrap_or_else(|err| {
         eprintln!("Error: {}", err);
         process::exit(1);
     });
@@ -36,15 +35,25 @@ struct Config {
 }
 
 impl Config {
-    fn build(args: &[String]) -> Result<Config, &str> {
-        if args.len() < 3 {
-            return Err("Invalid arguments");
-        }
+    fn build(mut args: impl Iterator<Item = String>) -> Result<Config, &'static str> {
+        args.next(); // Ignore program file
+
+        let query = match args.next() {
+            Some(arg) => arg,
+            None => return Err("Didn't get a query string"),
+        };
+
+        let path = match args.next() {
+            Some(arg) => arg,
+            None => return Err("Didn't get a file path"),
+        };
+
+        let ignore_case = env::var("IGNORE_CASE").is_ok();
 
         Ok(Config {
-            query: args[1].clone(),
-            path: args[2].clone(),
-            ignore_case: env::var("IGNORE_CASE").is_ok(),
+            query,
+            path,
+            ignore_case,
         })
     }
 }
