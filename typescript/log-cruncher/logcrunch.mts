@@ -45,11 +45,7 @@ function parseLine(line: string) {
 
     if (log.status >= 400) statsByPath[log.path]!.errors++;
 
-    if (statsByIP[log.ip] === undefined) {
-      statsByIP[log.ip] = 1;
-    } else {
-      statsByIP[log.ip]! += 1;
-    }
+    statsByIP[log.ip] = (statsByIP[log.ip] ?? 0) + 1;
   } catch (err) {
     skipped_lines++;
     // if (err instanceof Error) console.error(err.message);
