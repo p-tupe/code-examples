@@ -1,17 +1,16 @@
 use std::{
     collections::HashMap,
-    error::Error,
     fs::{File, OpenOptions},
-    io::{BufRead, BufReader},
+    io::{BufRead, BufReader, Result},
 };
 
 use serde::Serialize;
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> Result<()> {
     let file = File::open("./test.log")?;
 
     let mut stats = Stats::default();
-    let mut durations = HashMap::new();
+    let mut durations: HashMap<String, Vec<u32>> = HashMap::new();
     let mut ip_counts = HashMap::new();
 
     for l in BufReader::new(file).lines() {
@@ -26,21 +25,18 @@ fn main() -> Result<(), Box<dyn Error>> {
             *stats
                 .errors_per_endpoint
                 .entry(log.path.clone())
-                .or_insert(1) += 1;
+                .or_default() += 1;
         }
 
-        durations
-            .entry(log.path.clone())
-            .or_insert(Vec::new())
-            .push(log.duration);
+        durations.entry(log.path).or_default().push(log.duration);
 
-        *ip_counts.entry(log.ip).or_insert(0) += 1;
+        *ip_counts.entry(log.ip).or_default() += 1;
     }
 
-    durations.iter_mut().for_each(|(path, values)| {
+    durations.into_iter().for_each(|(path, mut values)| {
         values.sort();
         let p95 = values[values.len() * 95 / 100];
-        stats.p95_latency_ms.insert(path.clone(), p95);
+        stats.p95_latency_ms.insert(path, p95);
     });
 
     ip_counts.iter().for_each(|(ip, count)| {
@@ -56,6 +52,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let result_writer = OpenOptions::new()
         .write(true)
         .create(true)
+        .truncate(true)
         .open("./results.json")?;
 
     serde_json::to_writer(result_writer, &stats)?;
@@ -90,27 +87,16 @@ struct Log {
 
 impl Log {
     fn build(line: &str) -> Option<Log> {
-        // TODO: Use .next()
-        let mut parts: Vec<_> = line.split_whitespace().map(String::from).collect();
-
-        if parts.len() < 7 {
-            return None;
-        }
-
-        let duration = parts.pop()?.strip_suffix("ms")?.parse().ok()?;
-        let status = parts.pop()?.parse().ok()?;
-        let method = parts.pop()?;
-        let path = parts.pop()?;
-        // TODO: Validate
+        let mut parts = line.split_whitespace();
 
         Some(Log {
-            timestamp: parts.remove(0),
-            level: parts.remove(0),
-            ip: parts.remove(0),
-            path,
-            method,
-            status,
-            duration,
+            timestamp: parts.next()?.to_string(),
+            level: parts.next()?.to_string(),
+            ip: parts.next()?.to_string(),
+            path: parts.next()?.to_string(),
+            method: parts.next()?.to_string(),
+            status: parts.next()?.parse().ok()?,
+            duration: parts.next()?.strip_suffix("ms")?.parse().ok()?,
         })
     }
 }
