@@ -26,8 +26,8 @@ Pick three.";
             search(query, contents, false)
         )
     }
-    #[test]
 
+    #[test]
     fn case_isensitive() {
         let query = "dUcT";
         let contents = "\

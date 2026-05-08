@@ -1,14 +1,13 @@
 use std::{
     collections::HashMap,
+    error::Error,
     fs::{File, OpenOptions},
     io::{BufRead, BufReader},
 };
 
 use serde::Serialize;
 
-use anyhow::Result;
-
-fn main() -> Result<()> {
+fn main() -> Result<(), Box<dyn Error>> {
     let file = File::open("./test.log")?;
 
     let mut stats = Stats::default();
@@ -17,24 +16,25 @@ fn main() -> Result<()> {
 
     for l in BufReader::new(file).lines() {
         stats.total_requests += 1;
-        match Log::new(&l?) {
-            None => stats.skipped_lines += 1,
-            Some(log) => {
-                if log.status > 399 {
-                    *stats
-                        .errors_per_endpoint
-                        .entry(log.path.clone())
-                        .or_insert(1) += 1;
-                }
 
-                durations
-                    .entry(log.path.clone())
-                    .or_insert(Vec::new())
-                    .push(log.duration);
+        let Some(log) = Log::build(&l?) else {
+            stats.skipped_lines += 1;
+            continue;
+        };
 
-                *ip_counts.entry(log.ip).or_insert(1) += 1;
-            }
+        if log.status > 399 {
+            *stats
+                .errors_per_endpoint
+                .entry(log.path.clone())
+                .or_insert(1) += 1;
         }
+
+        durations
+            .entry(log.path.clone())
+            .or_insert(Vec::new())
+            .push(log.duration);
+
+        *ip_counts.entry(log.ip).or_insert(0) += 1;
     }
 
     durations.iter_mut().for_each(|(path, values)| {
@@ -89,7 +89,7 @@ struct Log {
 }
 
 impl Log {
-    fn new(line: &str) -> Option<Log> {
+    fn build(line: &str) -> Option<Log> {
         // TODO: Use .next()
         let mut parts: Vec<_> = line.split_whitespace().map(String::from).collect();
 
