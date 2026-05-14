@@ -15,11 +15,11 @@ class Log(BaseModel):
 
 def main():
     """logcruncher pulls in a log files and crunches it!"""
-    with open("./sample.log") as logFile:
+    with open("./test.log") as logFile:
         for line in logFile:
             vals = line.split(" ")
             try:
-                log = Log.model_validate(
+                _ = Log.model_validate(
                     {
                         "timestamp": vals[0],
                         "level": vals[1],
@@ -30,7 +30,6 @@ def main():
                         "duration": vals[6],
                     }
                 )
-                print(log)
             except ValidationError:
                 pass
 

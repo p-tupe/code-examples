@@ -75,6 +75,7 @@ struct Stats {
     top_ips: Vec<IPs>,
 }
 
+#[allow(dead_code)]
 struct Log {
     timestamp: String,
     level: String,
