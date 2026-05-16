@@ -1,4 +1,4 @@
-/// This final iteration uses macros, improved using community solutions
+//! This final iteration uses macros, improved using community solutions
 
 pub struct Duration(f64);
 
@@ -12,7 +12,7 @@ pub trait Planet {
     fn years_during(d: &Duration) -> f64;
 }
 
-macro_rules! impl_Planet {
+macro_rules! impl_planet {
     ($($planet:ident => $orbital:expr),+) => {
         $(
         pub struct $planet;
@@ -22,7 +22,7 @@ macro_rules! impl_Planet {
     };
 }
 
-impl_Planet!(
+impl_planet!(
     Earth    =>  1.0,
     Mercury  =>  0.2408467,
     Venus    =>  0.61519726,
