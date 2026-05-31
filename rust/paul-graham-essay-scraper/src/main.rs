@@ -7,7 +7,7 @@
 //! # Install
 //!
 //! ```bash
-//! cargo install github.com/code-examples/rust/paul-graham-essay-scraper
+//! cargo install --git https://github.com/p-tupe/code-examples.git  paul-graham-essay-scraper
 //! ```
 //!
 //! # Usage
@@ -16,15 +16,18 @@
 //! paul-graham-essay-scraper
 //! ```
 //!
-//! Will save essays in an ./essays directory relative to where the script ran from.
+//! Will save each essay in an `essays` directory relative to where the script ran from.
 
 const BASE_URL: &str = "https://paulgraham.com/";
 const ESSAY_DIR: &str = "./essays";
 
 #[tokio::main[worker_threads = 5]]
 async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
-    let client = reqwest::Client::new();
+    if !std::fs::exists(ESSAY_DIR).unwrap() {
+        std::fs::create_dir(ESSAY_DIR).expect("Error creating essays dir");
+    }
 
+    let client = reqwest::Client::new();
     let body = client
         .get(BASE_URL.to_string() + "articles.html")
         .send()
@@ -33,22 +36,18 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         .await?;
 
     let doc = scraper::Html::parse_document(&body);
-
     let table_sel = scraper::Selector::parse(
         "body > table:nth-child(1) > tbody:nth-child(1) > tr:nth-child(1) > td:nth-child(3) > table:nth-child(6)",
     )?;
     let links_sel = scraper::Selector::parse("a")?;
 
-    let table = doc
+    let links = doc
         .select(&table_sel)
         .next()
-        .expect("No table of links found!");
+        .expect("No table of links found!")
+        .select(&links_sel);
 
-    if !std::fs::exists(ESSAY_DIR).unwrap() {
-        std::fs::create_dir(ESSAY_DIR).expect("Error creating essays dir");
-    }
-
-    for link in table.select(&links_sel) {
+    for link in links {
         let url = link.attr("href").ok_or("No href found")?;
         let title = link.inner_html();
 
