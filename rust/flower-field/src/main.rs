@@ -1,6 +1,6 @@
 use flower_field::annotate;
 
 fn main() {
-    let x = annotate(&["·*·*·", "··*··", "··*··", "·····"]);
+    let x = annotate(&[" ", "*", " ", "*", " "]);
     println!("{x:#?}");
 }
