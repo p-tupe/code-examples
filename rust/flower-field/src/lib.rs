@@ -8,11 +8,6 @@ pub fn annotate(garden: &[&str]) -> Vec<String> {
         .map(|s| s.chars().collect())
         .collect::<Vec<_>>();
 
-    let get_v = |x, y| {
-        grid.get(x as usize)
-            .and_then(|str: &Vec<char>| str.get(y as usize))
-    };
-
     grid.iter()
         .enumerate()
         .map(|(r, str)| {
@@ -20,30 +15,19 @@ pub fn annotate(garden: &[&str]) -> Vec<String> {
                 .enumerate()
                 .map(|(c, ch)| {
                     if *ch == '*' {
-                        return ch.to_string();
+                        return *ch;
                     }
 
-                    // TODO: This bit hacky
-                    let r = r as isize;
-                    let c = c as isize;
+                    let s = (r.saturating_sub(1)..(r + 2).min(grid.len()))
+                        .flat_map(|i| {
+                            (c.saturating_sub(1)..(c + 2).min(str.len())).map(move |j| (i, j))
+                        })
+                        .filter(|&(i, j)| grid[i][j] == '*')
+                        .count() as u8;
 
-                    let s = [
-                        get_v(r - 1, c - 1), // north-west
-                        get_v(r - 1, c),     // north
-                        get_v(r - 1, c + 1), // north-east
-                        get_v(r, c + 1),     // east
-                        get_v(r + 1, c + 1), // south-east
-                        get_v(r + 1, c),     // south
-                        get_v(r + 1, c - 1), // south-west
-                        get_v(r, c - 1),     // west
-                    ]
-                    .iter()
-                    .map(|c| c.map_or_else(|| 0, |x| if *x == '*' { 1 } else { 0 }))
-                    .sum::<isize>();
-
-                    if s > 0 { s.to_string() } else { ch.to_string() }
+                    if s > 0 { (s + b'0') as char } else { *ch }
                 })
-                .collect::<String>()
+                .collect()
         })
         .collect()
 }
