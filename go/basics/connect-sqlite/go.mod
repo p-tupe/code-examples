@@ -1,11 +1,12 @@
 module sq
 
-go 1.24.5
+go 1.27.0
 
-require github.com/ncruces/go-sqlite3 v0.27.1
+require github.com/ncruces/go-sqlite3 v0.35.3
 
 require (
+	github.com/ncruces/go-sqlite3-wasm/v3 v3.4.35304 // indirect
 	github.com/ncruces/julianday v1.0.0 // indirect
-	github.com/tetratelabs/wazero v1.9.0 // indirect
-	golang.org/x/sys v0.34.0 // indirect
+	github.com/tetratelabs/wazero v1.12.0 // indirect
+	golang.org/x/sys v0.47.0 // indirect
 )

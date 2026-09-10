@@ -1,0 +1,13 @@
+{
+  "port": 8000,
+  "paths": [
+    {
+      "from": "/ollama",
+      "to": "http://localhost:11434"
+    },
+    {
+      "from": "/kokoro",
+      "to": "http://localhost:8001"
+    }
+  ]
+}

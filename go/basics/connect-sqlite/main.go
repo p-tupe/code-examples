@@ -7,7 +7,6 @@ import (
 	"fmt"
 
 	_ "github.com/ncruces/go-sqlite3/driver"
-	_ "github.com/ncruces/go-sqlite3/embed"
 )
 
 func main() {
@@ -15,7 +14,9 @@ func main() {
 	row := db.QueryRow(`SELECT sqlite_version();`)
 
 	v := ""
-	row.Scan(&v)
+	if err := row.Scan(&v); err != nil {
+		fmt.Println("Error: ", err)
+	}
 
 	fmt.Println(v)
 }

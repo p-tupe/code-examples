@@ -9,9 +9,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 )
@@ -21,16 +22,34 @@ type Config struct {
 	Sites    []string      `json:"sites"`
 }
 
+var notify, exists = os.LookupEnv("NOTIFY")
+
+func notifyAndLog(msg string) {
+	slog.Info(msg)
+
+	if exists {
+		if err := exec.Command(notify, msg).Run(); err != nil {
+			slog.Error(err.Error())
+		}
+	}
+}
+
 func main() {
-	log.Println("Pingmon started...")
-	cfg, err := readConfig(os.Args[1])
-	if err != nil {
-		log.Println("Error while reading config: ", err)
+	notifyAndLog("Pingmon started...")
+
+	if len(os.Args) < 2 {
+		slog.Error("no config ")
 		return
 	}
 
-	log.Println("Added sites:", cfg.Sites)
-	log.Println("For interval: ", cfg.Interval*time.Minute)
+	cfg, err := readConfig(os.Args[1])
+	if err != nil {
+		slog.Error("Error while reading config", "err", err)
+		return
+	}
+
+	slog.Info("Added", "sites", cfg.Sites)
+	slog.Info("For", "interval", cfg.Interval*time.Minute)
 
 	tick := time.Tick(cfg.Interval * time.Minute)
 	for {
@@ -56,11 +75,11 @@ func readConfig(path string) (Config, error) {
 	}
 
 	if len(cfg.Sites) == 0 {
-		return cfg, errors.New("Error config.sites invalid!")
+		return cfg, errors.New("config.sites invalid")
 	}
 
 	if cfg.Interval == 0 {
-		return cfg, errors.New("Error config.interval invalid!")
+		return cfg, errors.New("config.interval invalid")
 	}
 
 	return cfg, nil
@@ -72,42 +91,42 @@ func check(site string) {
 	resp, err := http.Get(site)
 	if err != nil {
 		msg := fmt.Sprintf("Error while checking site %s: %v\n", site, err)
-		log.Println(msg)
+		notifyAndLog(msg)
 		alert(msg)
 		return
 	}
 
 	if resp.StatusCode > http.StatusMultipleChoices {
 		msg := fmt.Sprintf("Error while checking site %s: %v\n", site, resp.Status)
-		log.Println(msg)
+		notifyAndLog(msg)
 		alert(msg)
 		return
 	}
 
-	log.Println(site, ":", resp.Status)
+	slog.Info(site, ":", resp.Status)
 }
 
 // alert sends a `msg` to the email
 func alert(msg string) {
-	log.Println("Generating alert...")
+	slog.Info("Generating alert...")
 
 	req, err := http.NewRequest(http.MethodPost, "https://app.priteshtupe.com/mail", strings.NewReader(msg))
 	if err != nil {
-		log.Println("Error while creating alert:", err)
+		slog.Error("Error while creating alert", "err", err)
 		return
 	}
 	req.Header.Add("Authorization", "+ugwY4jSfRC2dx3RwPYR7dDwFT0ilK42TrhOUGpjqOA4Cg==")
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		log.Println("Error while sending alert:", err)
+		slog.Error("Error while sending alert", "err", err)
 		return
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		log.Println("Error while sending alert:", resp.Status)
+		slog.Error("Error while sending alert", "status", resp.Status)
 		return
 	}
 
-	log.Println("Alert sent!")
+	slog.Info("Alert sent!")
 }
