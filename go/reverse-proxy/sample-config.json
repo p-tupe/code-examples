@@ -8,6 +8,14 @@
     {
       "from": "/kokoro",
       "to": "http://localhost:8001"
+    },
+    {
+      "from": "/whisper",
+      "to": "http://localhost:8002"
+    },
+    {
+      "from": "/mac-ocr",
+      "to": "http://localhost:8003"
     }
   ]
 }

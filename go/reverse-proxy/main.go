@@ -18,11 +18,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 )
@@ -60,6 +62,44 @@ func main() {
 		w.WriteHeader(200)
 	})
 
+	mux.HandleFunc("/mac-ocr", func(w http.ResponseWriter, r *http.Request) {
+		slog.Info("request received:", "from", r.URL.Path)
+
+		if r.Method != http.MethodPost {
+			http.Error(w, "invalid method", http.StatusMethodNotAllowed)
+			return
+		}
+
+		imgFile, err := os.CreateTemp("", "ocr-*")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		defer os.Remove(imgFile.Name())
+
+		_, err = io.Copy(imgFile, r.Body)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		defer r.Body.Close()
+
+		output, err := exec.Command("/Users/pritesh/.local/bin/mac-ocr", "--json", imgFile.Name()).CombinedOutput()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		_, err = w.Write(output)
+		if err != nil {
+			slog.Error("Error while writing output", "err", err.Error())
+			return
+		}
+		slog.Info("Command ran successfully!")
+	})
+
+	// external
 	proxy := &httputil.ReverseProxy{
 		ErrorLog: slog.NewLogLogger(slog.Default().Handler(), slog.Level(slog.LevelError)),
 		Rewrite: func(pr *httputil.ProxyRequest) {
@@ -67,20 +107,19 @@ func main() {
 
 			for _, path := range pathMap {
 				if p, ok := strings.CutPrefix(pr.In.URL.Path, path[0]); ok {
-					if p == "" {
-						p = "/"
-					}
 					if !strings.HasPrefix(p, "/") {
 						p = "/" + p
 					}
 					pr.Out.URL.Path = p
 					pr.Out.URL.RawPath = ""
+
 					if target, err := url.Parse(path[1]); err != nil {
 						slog.Error("bad target url", "err", err)
 					} else {
 						pr.SetURL(target)
 						slog.Info("proxied", "from", pr.In.URL.Path, "to", pr.Out.URL.String())
 					}
+
 					break
 				}
 			}
