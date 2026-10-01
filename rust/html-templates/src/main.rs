@@ -1,3 +1,5 @@
+//! This code contains a minimal html template code
+//! Refer https://askama.rs/en/stable/
 use std::error::Error;
 
 use askama::Template;
