@@ -2,5 +2,6 @@
   "sites": [
     "https://example.com"
   ],
-  "interval": 30
+  "interval": 30,
+  "auth": "some-key"
 }

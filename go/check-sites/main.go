@@ -20,6 +20,7 @@ import (
 type Config struct {
 	Interval time.Duration `json:"interval"`
 	Sites    []string      `json:"sites"`
+	Auth     string        `json:"auth"`
 }
 
 var notify, exists = os.LookupEnv("NOTIFY")
@@ -55,7 +56,7 @@ func main() {
 	for {
 		<-tick
 		for _, site := range cfg.Sites {
-			go check(site)
+			go check(cfg, site)
 		}
 	}
 }
@@ -87,19 +88,19 @@ func readConfig(path string) (Config, error) {
 
 // check starts a ticker that checks for a
 // successful response from `site` every 30m
-func check(site string) {
+func check(cfg Config, site string) {
 	resp, err := http.Get(site)
 	if err != nil {
 		msg := fmt.Sprintf("Error while checking site %s: %v\n", site, err)
 		notifyAndLog(msg)
-		alert(msg)
+		alert(cfg, msg)
 		return
 	}
 
 	if resp.StatusCode > http.StatusMultipleChoices {
 		msg := fmt.Sprintf("Error while checking site %s: %v\n", site, resp.Status)
 		notifyAndLog(msg)
-		alert(msg)
+		alert(cfg, msg)
 		return
 	}
 
@@ -107,15 +108,15 @@ func check(site string) {
 }
 
 // alert sends a `msg` to the email
-func alert(msg string) {
+func alert(cfg Config, msg string) {
 	slog.Info("Generating alert...")
 
-	req, err := http.NewRequest(http.MethodPost, "https://app.priteshtupe.com/mail", strings.NewReader(msg))
+	req, err := http.NewRequest(http.MethodPost, "https://app.priteshtupe.com/mail/", strings.NewReader(msg))
 	if err != nil {
 		slog.Error("Error while creating alert", "err", err)
 		return
 	}
-	req.Header.Add("Authorization", "+ugwY4jSfRC2dx3RwPYR7dDwFT0ilK42TrhOUGpjqOA4Cg==")
+	req.Header.Add("Authorization", cfg.Auth)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
