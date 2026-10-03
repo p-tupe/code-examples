@@ -1,0 +1,9 @@
+[Service]
+WorkingDirectory=/home/ubuntu/mail-server
+ExecStart=/home/ubuntu/mail-server/mail-server
+EnvironmentFile=/home/ubuntu/mail-server/.env
+User=ubuntu
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
