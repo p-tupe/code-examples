@@ -14,7 +14,7 @@ pub struct Channel {
 pub struct Item {
     pub enclosure: Enclosure,
     #[serde(rename = "episodeUrl")]
-    pub episode_url: String,
+    pub episode_name: String,
 }
 
 #[derive(Deserialize)]
