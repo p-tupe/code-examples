@@ -1,10 +1,7 @@
 //! Download coffee break french episodes for offline play
 //!
-//! Usage:
-//! ./coffee-break
-//!
 //! Use responsibly; don't be an ass. Support them if you can.
-use std::{fs, path::PathBuf, thread};
+use std::{fs, path::PathBuf, thread, time::Duration};
 
 mod schema;
 
@@ -15,12 +12,17 @@ const CONCURRENCY: usize = 4;
 const DIR: &str = "episodes";
 
 fn main() -> AResult<()> {
-    let client = ureq::agent();
-    let feed = client.get(CBF_URL).call()?.into_body().read_to_string()?;
-    let data: schema::Rss = quick_xml::de::from_str(&feed)?;
     fs::create_dir_all(DIR)?;
 
-    for batch in data.channel.item.windows(CONCURRENCY) {
+    let client = ureq::Agent::config_builder()
+        .timeout_per_call(Some(Duration::from_mins(2)))
+        .build()
+        .new_agent();
+
+    let feed = client.get(CBF_URL).call()?.into_body().read_to_string()?;
+    let data: schema::Rss = quick_xml::de::from_str(&feed)?;
+
+    for batch in data.channel.item.chunks(CONCURRENCY) {
         let mut handles = Vec::with_capacity(CONCURRENCY);
         for item in batch {
             let name = item.episode_url.clone();
@@ -34,19 +36,19 @@ fn main() -> AResult<()> {
             }
 
             handles.push(thread::spawn(move || {
-                let _ = client
+                if let Err(e) = client
                     .get(&url)
                     .call()
                     .and_then(|resp| {
                         resp.into_body()
                             .with_config()
-                            .limit(50 * 1024 * 1024)
+                            .limit(100 * 1024 * 1024)
                             .read_to_vec()
                     })
-                    .map(|bytes| fs::write(file_name, bytes))
-                    .map_err(|e| {
-                        eprintln!("unable to download {url}: {e}");
-                    });
+                    .and_then(|bytes| fs::write(file_name, bytes).map_err(|e| e.into()))
+                {
+                    eprintln!("unable to download {url}: {e}");
+                };
             }));
         }
 

@@ -5,6 +5,5 @@ edition = "2024"
 
 [dependencies]
 quick-xml = { version = "0.42.0", features = ["serialize", "overlapped-lists"] }
-scraper = "0.27.0"
 serde = { version = "1.0.229", features = ["derive"] }
 ureq = "3.4.2"
