@@ -1,46 +1,59 @@
-//! Download coffee break episodes as mp3 files
+//! Download coffee break french episodes for offline play
 //!
 //! Usage:
-//! ./coffee-break <url>
+//! ./coffee-break
 //!
-//! where `url` is a page with a list of episodes
-//! (eg https://coffeebreaklanguages.com/tag/the-coffee-break-french-show/)
-use scraper::{Html, Selector};
-use std::env;
-use ureq::Agent;
+//! Use responsibly; don't be an ass. Support them if you can.
+use std::{fs, path::PathBuf, thread};
+
+mod schema;
 
 type AResult<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
+const CBF_URL: &str = "https://feeds.acast.com/public/shows/coffeebreakfrench";
+const CONCURRENCY: usize = 4;
+const DIR: &str = "episodes";
+
 fn main() -> AResult<()> {
-    let url = env::args()
-        .nth(1)
-        .ok_or("coffee break french url not supplied")?;
-
     let client = ureq::agent();
+    let feed = client.get(CBF_URL).call()?.into_body().read_to_string()?;
+    let data: schema::Rss = quick_xml::de::from_str(&feed)?;
+    fs::create_dir_all(DIR)?;
 
-    let episodes = fetch_episodes(&client, &url).expect("episodes fetched");
+    for batch in data.channel.item.windows(CONCURRENCY) {
+        let mut handles = Vec::with_capacity(CONCURRENCY);
+        for item in batch {
+            let name = item.episode_url.clone();
+            let url = item.enclosure.url.clone();
+            let client = client.clone();
 
-    let mut counter = 0;
-    let mut itr = episodes.iter().peekable();
+            let file_name: PathBuf = [DIR, &(name + ".mp3")].iter().collect();
+            if file_name.exists() {
+                eprintln!("skipping {file_name:?}, already exists");
+                continue;
+            }
 
-    while counter < 2 && itr.peek().is_some() {
-        download_audio(&client, itr.next().unwrap())?;
-        counter += 1;
+            handles.push(thread::spawn(move || {
+                let _ = client
+                    .get(&url)
+                    .call()
+                    .and_then(|resp| {
+                        resp.into_body()
+                            .with_config()
+                            .limit(50 * 1024 * 1024)
+                            .read_to_vec()
+                    })
+                    .map(|bytes| fs::write(file_name, bytes))
+                    .map_err(|e| {
+                        eprintln!("unable to download {url}: {e}");
+                    });
+            }));
+        }
+
+        for h in handles {
+            h.join().expect("audio downloaded");
+        }
     }
 
-    Ok(())
-}
-
-fn fetch_episodes(client: &Agent, url: &str) -> AResult<Vec<String>> {
-    Ok(
-        Html::parse_document(&client.get(url).call()?.into_body().read_to_string()?)
-            .select(&Selector::parse("h3.elementor-post__title > a")?)
-            .filter_map(|a| a.attr("href").map(|h| h.to_string()))
-            .collect(),
-    )
-}
-
-fn download_audio(client: &Agent, url: &str) -> AResult<()> {
-    println!("Downloading {url:?}");
     Ok(())
 }
