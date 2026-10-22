@@ -1,17 +1,15 @@
 //! Download coffee break french episodes for offline play
 //!
 //! Use responsibly; don't be an ass. Support them if you can.
-use std::{fs, path::Path, sync::atomic, thread, time::Duration};
+use std::{error::Error, fs, path::Path, result::Result, sync::atomic, thread, time::Duration};
 
 mod schema;
-
-type AResult<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 const CBF_URL: &str = "https://feeds.acast.com/public/shows/coffeebreakfrench";
 const CONCURRENCY: usize = 6;
 const DIR: &str = "episodes";
 
-fn main() -> AResult<()> {
+fn main() -> Result<(), Box<dyn Error>> {
     fs::create_dir_all(DIR)?;
 
     let client = ureq::Agent::config_builder()
