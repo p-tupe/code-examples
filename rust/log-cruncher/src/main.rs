@@ -7,16 +7,18 @@ use std::{
 use serde::Serialize;
 
 fn main() -> Result<()> {
-    let file = File::open("./test.log")?;
-
     let mut stats = Stats::default();
     let mut durations: HashMap<String, Vec<u32>> = HashMap::new();
     let mut ip_counts = HashMap::new();
 
-    for l in BufReader::new(file).lines() {
+    let file = File::open("./test.log")?;
+    let mut line = String::new();
+    let mut reader = BufReader::new(file);
+    while reader.read_line(&mut line)? > 0 {
         stats.total_requests += 1;
 
-        let Some(log) = Log::build(&l?) else {
+        let Some(log) = Log::build(&line) else {
+            line.clear();
             stats.skipped_lines += 1;
             continue;
         };
@@ -24,13 +26,24 @@ fn main() -> Result<()> {
         if log.status > 399 {
             *stats
                 .errors_per_endpoint
-                .entry(log.path.clone())
+                .entry(log.path.to_string())
                 .or_default() += 1;
         }
 
-        durations.entry(log.path).or_default().push(log.duration);
+        if let Some(v) = durations.get_mut(log.path) {
+            v.push(log.duration);
+        } else {
+            durations.insert(log.path.to_string(), vec![log.duration]);
+        };
 
-        *ip_counts.entry(log.ip).or_default() += 1;
+        if let Some(v) = ip_counts.get_mut(log.ip) {
+            *v += 1;
+        } else {
+            ip_counts.insert(log.ip.to_string(), 1);
+        };
+
+        *ip_counts.entry(log.ip.to_string()).or_default() += 1;
+        line.clear();
     }
 
     durations.into_iter().for_each(|(path, mut values)| {
@@ -46,7 +59,7 @@ fn main() -> Result<()> {
         });
     });
 
-    stats.top_ips.sort_by(|a, b| b.count.cmp(&a.count));
+    stats.top_ips.sort_by_key(|a| std::cmp::Reverse(a.count));
     stats.top_ips.truncate(10);
 
     let result_writer = OpenOptions::new()
@@ -76,26 +89,26 @@ struct Stats {
 }
 
 #[allow(dead_code)]
-struct Log {
-    timestamp: String,
-    level: String,
-    ip: String,
-    path: String,
-    method: String,
+struct Log<'a> {
+    timestamp: &'a str,
+    level: &'a str,
+    ip: &'a str,
+    path: &'a str,
+    method: &'a str,
     status: u32,
     duration: u32,
 }
 
-impl Log {
-    fn build(line: &str) -> Option<Log> {
+impl<'a> Log<'a> {
+    fn build(line: &'a str) -> Option<Log<'a>> {
         let mut parts = line.split_whitespace();
 
         Some(Log {
-            timestamp: parts.next()?.to_string(),
-            level: parts.next()?.to_string(),
-            ip: parts.next()?.to_string(),
-            path: parts.next()?.to_string(),
-            method: parts.next()?.to_string(),
+            timestamp: parts.next()?,
+            level: parts.next()?,
+            ip: parts.next()?,
+            path: parts.next()?,
+            method: parts.next()?,
             status: parts.next()?.parse().ok()?,
             duration: parts.next()?.strip_suffix("ms")?.parse().ok()?,
         })
