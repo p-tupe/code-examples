@@ -4,7 +4,9 @@ use std::{
     io::{BufRead, BufReader, Result},
 };
 
-use serde::Serialize;
+use crate::schema::{IPs, Log, Stats};
+
+mod schema;
 
 fn main() -> Result<()> {
     let mut stats = Stats::default();
@@ -71,46 +73,4 @@ fn main() -> Result<()> {
     serde_json::to_writer(result_writer, &stats)?;
 
     Ok(())
-}
-
-#[derive(Debug, Default, Serialize)]
-struct IPs {
-    ip: String,
-    count: u32,
-}
-
-#[derive(Debug, Default, Serialize)]
-struct Stats {
-    total_requests: u32,
-    skipped_lines: u32,
-    errors_per_endpoint: HashMap<String, u32>,
-    p95_latency_ms: HashMap<String, u32>,
-    top_ips: Vec<IPs>,
-}
-
-#[allow(dead_code)]
-struct Log<'a> {
-    timestamp: &'a str,
-    level: &'a str,
-    ip: &'a str,
-    path: &'a str,
-    method: &'a str,
-    status: u32,
-    duration: u32,
-}
-
-impl<'a> Log<'a> {
-    fn build(line: &'a str) -> Option<Log<'a>> {
-        let mut parts = line.split_whitespace();
-
-        Some(Log {
-            timestamp: parts.next()?,
-            level: parts.next()?,
-            ip: parts.next()?,
-            path: parts.next()?,
-            method: parts.next()?,
-            status: parts.next()?.parse().ok()?,
-            duration: parts.next()?.strip_suffix("ms")?.parse().ok()?,
-        })
-    }
 }
