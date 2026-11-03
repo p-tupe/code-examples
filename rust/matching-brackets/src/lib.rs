@@ -1,12 +1,15 @@
-//! Third attempt: Slighly faster and readable
+//! Fourth attempt: Stack with spice
 pub fn brackets_are_balanced(string: &str) -> bool {
-    let mut s: String = string.chars().filter(|&c| ("[{()}]").contains(c)).collect();
-    while !s.is_empty() {
-        let l = s.len();
-        s = s.replace("[]", "").replace("{}", "").replace("()", "");
-        if l == s.len() {
-            return false;
+    let mut st = Vec::with_capacity(string.len());
+    string.chars().all(|c| match c {
+        '(' | '{' | '[' => {
+            st.push(c);
+            true
         }
-    }
-    true
+        ']' | '}' | ')' => st.pop().map_or_else(
+            || false,
+            |x| matches!((x, c), ('(', ')') | ('{', '}') | ('[', ']')),
+        ),
+        _ => true,
+    }) && st.is_empty()
 }
